@@ -4,7 +4,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-def midi_to_piano_roll(midi_path, fs=48, max_length=96):
+def midi_to_piano_roll(midi_path, fs=48, max_length=384):
     midi_data = pretty_midi.PrettyMIDI(midi_path)
     piano_roll = midi_data.get_piano_roll(fs=fs)
     piano_roll = piano_roll[24:96]

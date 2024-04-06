@@ -28,7 +28,7 @@ def process_directory(root_dir):
                     print(f"Removing sparse file: {file_path}")
                     sparse_count += 1
                     print(f"Number of sparse files: {sparse_count}")
-                    os.remove(file_path)
+                    os.remove(file_path)  # comment out for a test run
 
 
 if __name__ == "__main__":

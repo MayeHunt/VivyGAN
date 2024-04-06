@@ -13,7 +13,7 @@ from PIL import Image
 
 
 def preprocess(file_path):
-    img = load_img(file_path, color_mode='grayscale', target_size=(72, 96))
+    img = load_img(file_path, color_mode='grayscale', target_size=(72, 384))
     img_array = img_to_array(img)
     img_array = img_array / 255.0
     return img_array
@@ -28,7 +28,7 @@ def create_dataset(csv_path, set_type, batch_size):
     dataset = tf.data.Dataset.from_tensor_slices(file_paths)
     dataset = dataset.map(lambda x: tf.numpy_function(preprocess, [x], tf.float32), num_parallel_calls=tf.data.AUTOTUNE)
 
-    dataset = dataset.map(lambda x: tf.reshape(x, (72, 96, 1)))
+    dataset = dataset.map(lambda x: tf.reshape(x, (72, 384, 1)))
 
     return dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
@@ -46,9 +46,9 @@ def generate_noise(batch_size, latent_dim):
 def build_generator(latent_dim=100):
     model = Sequential([
         Input(shape=(latent_dim,)),
-        Dense(9 * 12 * 512, kernel_initializer='he_normal'),
+        Dense(9 * 48 * 512, kernel_initializer='he_normal'),
         LeakyReLU(negative_slope=0.2),
-        Reshape((9, 12, 512)),
+        Reshape((9, 48, 512)),
         Conv2DTranspose(256, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
         LeakyReLU(negative_slope=0.2),
         Conv2DTranspose(128, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
@@ -56,12 +56,12 @@ def build_generator(latent_dim=100):
         Conv2DTranspose(64, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
         LeakyReLU(negative_slope=0.2),
         Conv2DTranspose(1, kernel_size=(5, 5), strides=(1, 1), padding='same', kernel_initializer='he_normal'),
-        Activation('sigmoid'),
+        Activation('linear'),
     ])
     return model
 
 
-def build_discriminator(seq_length=96):
+def build_discriminator(seq_length=384):
     model = Sequential([
         Input(shape=(seq_length, 72, 1)),
         Conv2D(64, kernel_size=(3, 3), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
@@ -224,7 +224,7 @@ def plot_real_vs_generated(generator, real_data, epoch, latent_dim=100, examples
 
     real_data_subset = (real_data[:examples] + 1) / 2
 
-    fig, axs = plt.subplots(examples, 2, figsize=(3, 4))
+    fig, axs = plt.subplots(examples, 2, figsize=(12, 4))
 
     for i in range(examples):
         axs[i, 0].imshow(real_data_subset[i].squeeze(), cmap='gray', aspect='equal', interpolation='none')
@@ -252,7 +252,7 @@ def model_checkpoints(checkpoint_dir, generator, discriminator):
 
 
 if __name__ == "__main__":
-    batch_size = 256
+    batch_size = 128
     save_interval = 10
     csv_path = 'dataset_split.csv'
     train_dataset = create_dataset(csv_path, 'train', batch_size)

@@ -169,5 +169,7 @@ maestro-v3.0.0_*/
 evaluation/
 generated/
 old_files/
+training_checkpoints_cnn/
 training_checkpoints_cnn_first_600/
-
+training_checkpoints_cnn_second_600/
+training_checkpoints_cnn*/
