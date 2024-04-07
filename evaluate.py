@@ -79,6 +79,9 @@ def display_images(images, title):
     plt.show()
 
 
+
+
+
 if __name__ == "__main__":
     # Models initialisation
     generator_optimizer = Adam(learning_rate=1e-4, beta_1=0.5, beta_2=0.999)

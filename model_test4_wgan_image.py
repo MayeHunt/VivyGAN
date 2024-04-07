@@ -56,7 +56,7 @@ def build_generator(latent_dim=100):
         Conv2DTranspose(64, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
         LeakyReLU(negative_slope=0.2),
         Conv2DTranspose(1, kernel_size=(5, 5), strides=(1, 1), padding='same', kernel_initializer='he_normal'),
-        Activation('linear'),
+        Activation('sigmoid'),
     ])
     return model
 
@@ -90,12 +90,16 @@ def discriminator_loss(real_output, fake_output):
     return tf.reduce_mean(fake_output) - tf.reduce_mean(real_output)
 
 
-def generator_loss(fake_output):
-    return -tf.reduce_mean(fake_output)
+def generator_loss(fake_output, generated_images, density_weight=0.01, density_threshold=5, silence_weight=0.1):
+    adversarial_loss = -tf.reduce_mean(fake_output)
+    density_penalty = calculate_density_penalty(generated_images, density_threshold)
+    silence_penalty = calculate_silence_penalty(generated_images)
+
+    combined_loss = adversarial_loss + (density_weight * density_penalty) + (silence_penalty * silence_weight)
+    return combined_loss, density_penalty, silence_penalty
 
 
 def gradient_penalty(real_images, fake_images, discriminator, batch_size):
-
     alpha = tf.random.uniform([batch_size, 1, 1, 1], 0., 1.)
     diff = fake_images - real_images
     interpolated = real_images + alpha * diff
@@ -110,8 +114,20 @@ def gradient_penalty(real_images, fake_images, discriminator, batch_size):
     return gp
 
 
+def calculate_density_penalty(generated_images, threshold):
+    active_notes = tf.reduce_sum(generated_images, axis=1)
+    excessive_density = tf.maximum(active_notes - threshold, 0)
+    density_penalty = tf.reduce_sum(excessive_density)
+    return density_penalty
+
+
+def calculate_silence_penalty(generated_images):
+    silent_timesteps = tf.reduce_sum(tf.cast(tf.reduce_sum(generated_images, axis=1) == 0, tf.float32))
+    return silent_timesteps
+
+
 @tf.function
-def train_discriminator_step(images, generator, discriminator, batch_size, latent_dim, gp_weight=12.0):
+def train_discriminator_step(images, generator, discriminator, batch_size, latent_dim, gp_weight=20.0):
     noise = generate_noise(batch_size, latent_dim)
 
     with tf.GradientTape() as disc_tape:
@@ -120,11 +136,11 @@ def train_discriminator_step(images, generator, discriminator, batch_size, laten
         fake_output = discriminator(generated_images, training=True)
 
         gp = gradient_penalty(images, generated_images, discriminator, batch_size)
-        disc_loss = discriminator_loss(real_output, fake_output) + gp * gp_weight
+        disc_loss = discriminator_loss(real_output, fake_output) + (gp * gp_weight)
 
     gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
     discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
-    return disc_loss
+    return disc_loss, tf.reduce_mean(real_output), gp
 
 
 @tf.function
@@ -134,11 +150,11 @@ def train_generator_step(generator, discriminator, batch_size, latent_dim):
     with tf.GradientTape() as gen_tape:
         generated_images = generator(noise, training=True)
         fake_output = discriminator(generated_images, training=False)
-        gen_loss = generator_loss(fake_output)
+        gen_loss, density_penalty, silence_penalty = generator_loss(fake_output, generated_images)
 
     gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
     generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
-    return gen_loss
+    return gen_loss, density_penalty, silence_penalty
 
 
 def train_gan(generator, discriminator, train_dataset, epochs, batch_size, latent_dim, steps_per_epoch, save_interval=10, critic_updates=3):
@@ -155,20 +171,20 @@ def train_gan(generator, discriminator, train_dataset, epochs, batch_size, laten
             if discriminator_update_counter < critic_updates:
                 # Discriminator update phase
                 discriminator.trainable = True
-                disc_loss = train_discriminator_step(image_batch, generator, discriminator, batch_size, latent_dim)
-                print(f"Epoch {epoch + 1}/{epochs}, Batch {batch_count}/{steps_per_epoch}, Discriminator Loss: {disc_loss:.2f}")
+                disc_loss, real_images, gp = train_discriminator_step(image_batch, generator, discriminator, batch_size, latent_dim)
+                print(f"Epoch {epoch + 1}/{epochs}, Batch {batch_count}/{steps_per_epoch}, Discriminator Loss: {disc_loss:.2f}, Real Loss: {real_images:.2f}, Gradient Penalty: {gp:.2f}")
                 disc_loss_list.append(disc_loss)
                 discriminator_update_counter += 1
             else:
                 # Generator update phase
-                gen_loss = train_generator_step(generator, discriminator, batch_size, latent_dim)
+                gen_loss, dp, sp = train_generator_step(generator, discriminator, batch_size, latent_dim)
                 gen_loss_list.append(gen_loss)
 
                 discriminator_update_counter = 0
 
                 print(
                     f"Epoch {epoch + 1}/{epochs}, Batch {batch_count}/{steps_per_epoch}, "
-                    f"Avg Discriminator Loss: {np.mean(disc_loss_list[-critic_updates:]):.2f}, Generator Loss: {gen_loss:.2f}")
+                    f"Avg Discriminator Loss: {np.mean(disc_loss_list[-critic_updates:]):.2f}, Generator Loss: {gen_loss:.2f}, Density Penalty: {dp:.2f}, Silence Penalty: {sp:.2f}")
 
             batch_count += 1
 
