@@ -27,4 +27,50 @@ This program loads the piano rolls from the .npz files and converts them to .png
 
 The final part of preprocessing, this program generates a .csv file containing the relative file path of every .png piano roll segment and assigns each to a train, validate, or testing set at a corresponding ratio of 70:10:20. This functions as a map for the program to load the dataset from without having to load the entire dataset to assign or find files with a specific set.
 
-### 
+### Training
+
+### `train_gan.py`
+
+This is the main file used for training the GAN model.
+
+### `train_variation_gan.py`
+
+This is used to train a variation of the GAN model, the main difference being that the generator is designed to accept a different shaped input equal to the dimensions of the input and output piano rolls, with the intent being to use this model to generate variations on existing piano rolls.
+
+### Testing
+
+### `test_copy_csv_sample_to_destination.py`
+
+
+
+### `test_load_play_results.py`
+
+
+
+### `test_muspy_evaluate.py`
+
+
+
+### Prototypes
+
+### `prototype_LoadFromCSV.py`
+
+
+
+### `prototype_evaluate.py`
+
+
+
+### `prototype_generate_variations.py`
+
+
+
+### CSVs
+
+### `dataset_split.csv`
+
+This is the .csv file produced by `preprocess_5_csvTestTrainSplit.py` used for getting files with preassigned testing, validate, and training sets.
+
+### `generated_songs_metrics.csv`
+
+This is the .csv file produced by the `test_muspy_evaluate.py` program. This contains metrics for each generated image to evaluate the quality of outputs.
