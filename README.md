@@ -5,7 +5,7 @@ This repo contains the steps taken for dataset preprocessing, the model training
 ## Explanation of Files
 The prefix of each file denotes what it is used for.
 
-### Preprocessing
+## Preprocessing
 
 ### `preprocess_1_split_dataset.py`
 
@@ -27,7 +27,7 @@ This program loads the piano rolls from the .npz files and converts them to .png
 
 The final part of preprocessing, this program generates a .csv file containing the relative file path of every .png piano roll segment and assigns each to a train, validate, or testing set at a corresponding ratio of 70:10:20. This functions as a map for the program to load the dataset from without having to load the entire dataset to assign or find files with a specific set.
 
-### Training
+## Training
 
 ### `train_gan.py`
 
@@ -37,7 +37,7 @@ This is the main file used for training the GAN model.
 
 This is used to train a variation of the GAN model, the main difference being that the generator is designed to accept a different shaped input equal to the dimensions of the input and output piano rolls, with the intent being to use this model to generate variations on existing piano rolls.
 
-### Testing
+## Testing
 
 ### `test_copy_csv_sample_to_destination.py`
 
@@ -51,7 +51,7 @@ This program can load either .npz or .png piano rolls and output them as .mid MI
 
 This program generates and loads generated piano rolls and converts them to a Muspy Music class, allowing the use of several Muspy methods for evaluation of the quality of generated outputs through metrics and visualisation. It also features a prototype for model loading from Azure Blob Storage and generating random samples.
 
-### Prototypes
+## Prototypes
 
 ### `prototype_LoadFromCSV.py`
 
@@ -73,7 +73,7 @@ It also features an approach to loading a saved model from checkpoint files and 
 
 This prototype was intended as a test for the API route for generating variations using the variations model. It downloads and loads the model from Azure Blob Storage and then loads an input with different function for handling various input types. It then applies noise to that input to generate variations.
 
-### CSVs
+## CSVs
 
 ### `dataset_split.csv`
 
