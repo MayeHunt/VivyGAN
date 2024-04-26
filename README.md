@@ -41,29 +41,37 @@ This is used to train a variation of the GAN model, the main difference being th
 
 ### `test_copy_csv_sample_to_destination.py`
 
-
+This program uses the `dataset_split.csv` file to copy a sample of the dataset to a destination folder for evaluation.
 
 ### `test_load_play_results.py`
 
-
+This program can load either .npz or .png piano rolls and output them as .mid MIDI files and .wav audio files. In particular, this allows generated .png files to be listened to for qualitative analysis and also formed a prototype for later implementation into the API code.
 
 ### `test_muspy_evaluate.py`
 
-
+This program generates and loads generated piano rolls and converts them to a Muspy Music class, allowing the use of several Muspy methods for evaluation of the quality of generated outputs through metrics and visualisation. It also features a prototype for model loading from Azure Blob Storage and generating random samples.
 
 ### Prototypes
 
 ### `prototype_LoadFromCSV.py`
 
-
+This prototype was used to test the feasibility of loading a dataset from a .csv file of paths.
 
 ### `prototype_evaluate.py`
 
+This prototype contains many early test functions that were implemented into other facets of VivyGAN such as: 
+* Formatting data for saving to images `save_generated_images()`.
+* Loading piano rolls from images `load_generated_images()`.
+* Loading and preprocessing images for evaluation `load_and_process_image()`.
+* Loading images from paths in a .csv file `load_images_from_csv()` and displaying them `display_images()`.
+* Removing short notes from generated samples at a threshold length `remove_short_notes()`.
+* Generating a variation on another sample and immediately saving it `generate_from_input()`.
 
+It also features an approach to loading a saved model from checkpoint files and a function for calculating the Frechet Inception Distance of generated samples against real samples.
 
 ### `prototype_generate_variations.py`
 
-
+This prototype was intended as a test for the API route for generating variations using the variations model. It downloads and loads the model from Azure Blob Storage and then loads an input with different function for handling various input types. It then applies noise to that input to generate variations.
 
 ### CSVs
 
