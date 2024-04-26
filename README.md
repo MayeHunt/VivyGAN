@@ -4,7 +4,7 @@ This repo contains the steps taken for dataset preprocessing, the model training
 
 ## Explanation of Files
 
-## Preprocessing
+### Preprocessing
 
 ### `preprocess_1_split_dataset.py`
 
