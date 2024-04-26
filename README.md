@@ -15,3 +15,7 @@ This program converts the segmented midi tracks into pianorolls and outputs them
 ### `preprocess_3_reduce_sparsity.py`
 
 This program loads the piano rolls from the .npz files and ensures that no timesteps contain only 0s, removing the file from the directory if any are found. This drastic approach ensures that all piano rolls contain continuous sound, helping the model recognise that the intended result should not have gaps of silence. This reduces the number of files in the dataset from 85960 to 39721.
+
+### `preprocess_4_convert_to_png.py`
+
+This program loads the piano rolls from the .npz files and converts them to .png image representations. This facilitates the use of the keras `load_img` and `img_to_array` methods for loading data in the training code, meaning all parts of dataset handling are controlled by tensorflow specific functions. It also ensures that the input is in the same format as the output for easy analysis post-generation.
