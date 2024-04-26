@@ -3,6 +3,7 @@
 This repo contains the steps taken for dataset preprocessing, the model training and testing, and prototypes for the [VivyGAN API](https://github.com/MayeHunt/VivyGAN_API).
 
 ## Explanation of Files
+The prefix of each file denotes what it is used for.
 
 ### Preprocessing
 
@@ -25,3 +26,5 @@ This program loads the piano rolls from the .npz files and converts them to .png
 ### `preprocess_5_csvTestTrainSplit.py`
 
 The final part of preprocessing, this program generates a .csv file containing the relative file path of every .png piano roll segment and assigns each to a train, validate, or testing set at a corresponding ratio of 70:10:20. This functions as a map for the program to load the dataset from without having to load the entire dataset to assign or find files with a specific set.
+
+### 
