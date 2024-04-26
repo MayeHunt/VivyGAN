@@ -43,15 +43,22 @@ def get_dataset_size(csv_path, set_type):
 
 
 def generate_noise(batch_size, latent_dim):
-    return np.random.normal(0, 1, (batch_size, latent_dim))
+    return np.random.normal(0, 1, (batch_size, latent_dim[0], latent_dim[1], 1))
 
 
-def build_generator(latent_dim=100):
+def build_generator(input_shape=(72, 384, 1)):
     model = Sequential([
-        Input(shape=(latent_dim,)),
-        Dense(9 * 48 * 512, kernel_initializer='he_normal'),
+        Input(shape=input_shape),
+        Conv2D(64, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
         LeakyReLU(negative_slope=0.2),
-        Reshape((9, 48, 512)),
+        Conv2D(128, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
+        LeakyReLU(negative_slope=0.2),
+        Conv2D(256, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
+        LeakyReLU(negative_slope=0.2),
+
+        Conv2D(256, kernel_size=(1, 1)),
+        LeakyReLU(negative_slope=0.2),
+
         Conv2DTranspose(256, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
         LeakyReLU(negative_slope=0.2),
         Conv2DTranspose(128, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
@@ -67,13 +74,13 @@ def build_generator(latent_dim=100):
 def build_discriminator(seq_length=384):
     model = Sequential([
         Input(shape=(seq_length, 72, 1)),
-        Conv2D(64, kernel_size=(3, 3), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
+        Conv2D(64, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
         LeakyReLU(negative_slope=0.2),
-        Conv2D(128, kernel_size=(3, 3), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
+        Conv2D(128, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
         LeakyReLU(negative_slope=0.2),
-        Conv2D(256, kernel_size=(3, 3), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
+        Conv2D(256, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
         LeakyReLU(negative_slope=0.2),
-        Conv2D(512, kernel_size=(3, 3), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
+        Conv2D(512, kernel_size=(5, 5), strides=(2, 2), padding='same', kernel_initializer='he_normal'),
         LeakyReLU(negative_slope=0.2),
         Flatten(),
         Dense(1, kernel_initializer='he_normal')
@@ -95,9 +102,12 @@ def discriminator_loss(real_output, fake_output):
 
 def generator_loss(fake_output, generated_images, density_weight=0.02, density_threshold=7, silence_weight=0.1, fragmentation_weight=0.001):
     adversarial_loss = -tf.reduce_mean(fake_output)
-    density_penalty = calculate_density_penalty(generated_images, density_threshold)
+
+    # density_penalty = calculate_density_penalty(generated_images, density_threshold)
     silence_penalty = calculate_silence_penalty(generated_images)
-    fragmentation_penalty = calculate_fragmentation_penalty(generated_images)
+    # fragmentation_penalty = calculate_fragmentation_penalty(generated_images)
+    fragmentation_penalty = 0
+    density_penalty = 0
 
     combined_loss = adversarial_loss + (density_weight * density_penalty) + (silence_penalty * silence_weight) + (fragmentation_penalty * fragmentation_weight)
     return combined_loss, (density_penalty*density_weight), (silence_penalty*silence_weight), (fragmentation_penalty*fragmentation_weight)
@@ -234,6 +244,9 @@ def train_gan(generator, discriminator, train_dataset, epochs, batch_size, laten
 
         if epoch == 0:
             save_imgs(generator, epoch, latent_dim)
+            generated_image = generator.predict(generate_noise(batch_size, latent_dim))
+            with train_summary_writer.as_default():
+                tf.summary.image("Training images", generated_image, step=epoch)
             for real_images in train_dataset.take(1):
                 real_images_np = real_images.numpy()
                 plot_real_vs_generated(generator, real_images_np, epoch, latent_dim=latent_dim, examples=5)
@@ -242,6 +255,9 @@ def train_gan(generator, discriminator, train_dataset, epochs, batch_size, laten
         if (epoch + 1) % save_interval == 0:
             manager.save()
             save_imgs(generator, epoch, latent_dim)
+            generated_image = generator.predict(generate_noise(batch_size, latent_dim))
+            with train_summary_writer.as_default():
+                tf.summary.image("Training images", generated_image, step=epoch)
             for real_images in train_dataset.take(1):
                 real_images_np = real_images.numpy()
                 plot_real_vs_generated(generator, real_images_np, epoch, latent_dim=latent_dim, examples=5)
@@ -256,8 +272,8 @@ def print_epoch_summary(epoch, epochs, gen_loss_list, disc_loss_list, total_epoc
     print(f"Total Epoch Time: {total_epoch_time:.2f} seconds")
 
 
-def save_imgs(generator, epoch, latent_dim=10, examples=1):
-    noise = np.random.normal(0, 1, (examples, latent_dim))
+def save_imgs(generator, epoch, latent_dim=[72, 384], examples=1, save_dir='./generated/', save_file=True):
+    noise = generate_noise(examples, latent_dim)
     generated_images = generator.predict(noise)
 
     for i, img in enumerate(generated_images):
@@ -267,13 +283,16 @@ def save_imgs(generator, epoch, latent_dim=10, examples=1):
         img = img.astype(np.uint8)
 
         img = Image.fromarray(img, 'L')
-        img.save(f'generated/epoch_{epoch}_example_{i}.png')
+        if save_file:
+            img.save(f'{save_dir}epoch_{epoch}_example_{i}.png')
 
-    print(f"Generated images for epoch {epoch} saved.")
+    if save_file:
+        print(f"Generated images for epoch {epoch} saved.")
+    if img:
+        return img
 
-
-def plot_real_vs_generated(generator, real_data, epoch, latent_dim=100, examples=10):
-    noise = np.random.normal(0, 1, (examples, latent_dim))
+def plot_real_vs_generated(generator, real_data, epoch, latent_dim=[72, 384], examples=10):
+    noise = generate_noise(examples, latent_dim)
     generated_images = generator.predict(noise)
     generated_images = (generated_images + 1) / 2
 
@@ -310,7 +329,7 @@ if __name__ == "__main__":
     # Params
     batch_size = 128
     save_interval = 10
-    latent_dim = 100
+    latent_dim = [72, 384]
     epochs = 600
     csv_path = 'dataset_split.csv'
 
@@ -337,7 +356,7 @@ if __name__ == "__main__":
     gan.compile(loss='binary_crossentropy', optimizer=generator_optimizer)
 
     # TF Checkpoints
-    checkpoint_dir = './training_checkpoints_cnn'
+    checkpoint_dir = './training_checkpoints_cnn_big_noise2'
     checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
     checkpoint = tf.train.Checkpoint(generator=generator, discriminator=discriminator)
     manager = tf.train.CheckpointManager(checkpoint, checkpoint_dir, max_to_keep=3)
@@ -349,14 +368,20 @@ if __name__ == "__main__":
 
     # TensorBoard
     log_dir = "./logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1, write_graph=True, write_images=True)
     train_log_dir = './logs/gradient_tape/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+    profiler_dir = './logs/profiler/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    graph_dir = './logs/graphs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    tf.summary.trace_on(graph=True, profiler=True, profiler_outdir=profiler_dir)
+    generator.predict(generate_noise(batch_size, latent_dim))
+    with train_summary_writer.as_default():
+        tf.summary.trace_export(name="GeneratorModel", step=0)
 
     # Save model as .keras
-    generator.predict(np.random.normal(0, 1, (batch_size, latent_dim)))
-    gan.save('model/model_save.keras')
-    generator.save('model/generator_save.keras')
+    generator.predict(generate_noise(batch_size, latent_dim))
+    #gan.save('model/model_save.keras')
+    generator.save('model/variation_save.keras')
     # Load model
     # model = keras.models.load_model('model/model_save.keras')
 

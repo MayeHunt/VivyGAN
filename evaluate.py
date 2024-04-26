@@ -12,26 +12,29 @@ from keras.applications.inception_v3 import preprocess_input
 import matplotlib.pyplot as plt
 
 
-def save_generated_images(generator, latent_dim=100, num_images=100, output_dir='evaluation/fake'):
+def save_generated_images(generator, latent_dim=100, num_images=5000, output_dir='evaluation/fake'):
     noise = generate_noise(num_images, latent_dim)
     generated_images = generator.predict(noise)
     for i, img in enumerate(generated_images):
-        img = np.repeat(img, 3, axis=-1)
+        img = remove_short_notes(img[:, :, 0], threshold=12)
+        img = np.repeat(img[:, :, np.newaxis], 3, axis=-1)
         img = Image.fromarray((img * 255).astype('uint8'), 'RGB')
         img.save(f'{output_dir}/image_{i}.png')
 
 
-def load_generated_images(folder_path, target_size=(299, 299)):
+def load_generated_images(folder_path, threshold=127.0):
     images = []
-    for filename in os.listdir(folder_path):
-        if filename.endswith('.png'):
-            filepath = os.path.join(folder_path, filename)
-            img = load_img(filepath, target_size=target_size, color_mode='rgb')
-            img = img_to_array(img)
-            img = np.expand_dims(img, axis=0)
-            img = preprocess_input(img)
-            images.append(img)
-    images = np.vstack(images)
+    dir_size = os.listdir(folder_path)
+
+    for i in range(len(dir_size)):
+        filename = f"image_{i}.png"
+        filepath = os.path.join(folder_path, filename)
+        img = load_img(filepath, color_mode='grayscale')
+        img = img_to_array(img)
+        img = np.flipud(img)  # Assuming you still want to vertically flip the images
+        binarized_img = np.where(img > threshold, 1, 0).squeeze()
+        images.append(binarized_img)
+
     return images
 
 
@@ -79,7 +82,32 @@ def display_images(images, title):
     plt.show()
 
 
+def remove_short_notes(image, threshold=12):
+    binarized = (image > 0.5).astype(np.float32)
+    for pitch in range(binarized.shape[0]):
+        active_note_start = None
+        for time_step in range(binarized.shape[1]):
+            if binarized[pitch, time_step] == 1 and active_note_start is None:
+                # note start
+                active_note_start = time_step
+            elif binarized[pitch, time_step] == 0 and active_note_start is not None:
+                # note end
+                if time_step - active_note_start < threshold:
+                    binarized[pitch, active_note_start:time_step] = 0
+                active_note_start = None
 
+        if active_note_start is not None and binarized.shape[1] - active_note_start < threshold:
+            binarized[pitch, active_note_start:] = 0
+    return binarized
+
+
+def generate_from_input(image, output_dir):
+    generated_images = generator.predict(image)
+    for i, img in enumerate(generated_images):
+        img = remove_short_notes(img[:, :, 0], threshold=12)
+        img = np.repeat(img[:, :, np.newaxis], 3, axis=-1)
+        img = Image.fromarray((img * 255).astype('uint8'), 'RGB')
+        img.save(f'{output_dir}/image_{i}.png')
 
 
 if __name__ == "__main__":
@@ -95,7 +123,11 @@ if __name__ == "__main__":
     model_checkpoints(checkpoint_dir, generator, discriminator)
 
     # Generate Images:
-    save_generated_images(generator)
+    #save_generated_images(generator)
+
+    # Generate from image input:
+    images = load_generated_images('evaluation/fake')
+    generate_from_input(images[3], 'generated/from_image')
 
     # Calculate FID
     #csv_path = 'dataset_split.csv'
